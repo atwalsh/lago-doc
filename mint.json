@@ -203,6 +203,12 @@
       ]
     },
     {
+      "group": "Migration",
+      "pages": [
+        "guide/migration-to-v1.1.x"
+      ]
+    },
+    {
       "group": "API Reference",
       "pages": [
         "api-reference/intro",

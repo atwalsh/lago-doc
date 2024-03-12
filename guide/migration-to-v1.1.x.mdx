@@ -1,0 +1,373 @@
+---
+title: "Migration to v-xxxx"
+---
+
+Dear Lago community 👋,
+We’re writing to inform you about an upcoming change in Lago that may impact your workflows.
+
+## Why we’re doing it?
+
+We understand that change can sometimes be challenging. However, we believe it's essential for growth and improvement.
+
+In our continuous efforts to improve Lago's scalability and introduce new features, we are implementing an update to streamline the delivery of multiple changes in one go. This approach allows us to deliver more value to you and pave the way for exciting new features.
+
+1. **Infinite Dimension Structure:** With filters, enjoy unlimited depth in dimension structures, enabling you to merge multiple billable metrics into a single event code.
+2. **High Usage Ingestion System:** Overcome scaling issues with the ability to send over 10,000 events per second.
+3. **Current/Past Usage Performance Improvements:** Experience close to real-time querying with enhanced performance for current and past usage endpoints.
+4. **Alerting Scenarios:** Set up custom alerts for critical events such as unpaid invoices, reaching wallet credit thresholds and others.
+5. **Workflow Creation:** Seamlessly trigger actions within Lago based on custom scenarios, like pausing subscriptions or upgrading plans based on alerts.
+6. **Entitlements Scenarios:** Utilize Lago's aggregated usage data to limit the access of feature usage based on your rules.
+
+## Timeline
+
+Until **June 11th**, we will continue to support the current behavior. However, after this date, previous versions will no longer be supported. We kindly ask you to migrate your integration before this day to avoid any potential breaking changes.
+
+## What are the changes?
+
+### 1. Transition from `group` to `filters`
+
+We're introducing a new method for building infinite levels of dimensions in Lago with the concept of `Filters`.
+
+#### a. Impact on billable metrics
+
+- Introduce `billable_metrics.filters`
+- Deprecate `billable_metrics.group`
+
+Please migrate all integration using `billable_metrics.groups`
+
+<AccordionGroup>
+  <Accordion title='Diff for "billable metric.group" with 1 level'>
+
+    ```diff
+    - { "billable_metric": {
+        …
+        "group": {
+          "key": "provider",
+          "values": ["AWS", "Google", "Azure"]
+        }
+      }
+    }
+    + { "billable_metric": {
+        …
+        "filters": [
+          {
+            "key": "provider",
+            "values": ["AWS", "Google", "Azure"]
+          }
+        ]
+      }
+    }
+    ```
+
+  </Accordion>
+  <Accordion title='Diff for "billable metric.group" with 2 levels'>
+
+    ```diff
+    - { "billable_metric": {
+        …
+        "group": {
+          "key": "provider",
+          "values": [
+            {
+              "name": "AWS",
+              "key": "region",
+              "values": ["Europe", "Africa", "Asia"]
+            },
+            {
+              "name": "Google",
+              "key": "region",
+              "values": ["Europe", "North America"]
+            },
+            {
+              "name": "Azure",
+              "key": "region",
+              "values": ["North America", "Asia"]
+            }
+          ]
+        }
+      }
+    }
+    + { "billable_metric": {
+        …
+        "filters": [
+          {
+            "key": "provider",
+            "values": ["AWS", "Google", "Azure"]
+          },
+          {
+            "key": "region",
+            "values": ["Europe", "Africa", "Asia", "North America"]
+          }
+
+        ]
+      }
+    }
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Note that the billable metric object will display only `filters` and will no
+  longer include `group`.
+</Warning>
+
+#### b. Impact on plans
+
+- Introduce `plans.charges.filters`
+- Deprecate `plans.charges.group_properties`
+
+Please migrate all integration using `plans.charges.group_properties`.
+
+<AccordionGroup>
+  <Accordion title='Diff for "plans.charges.group_properties"'>
+
+    ```diff
+    - { "plans": {
+        …
+        "charges": [
+        {
+          …
+          "properties": {
+            "amount": "0",
+          },
+          "group_properties": [
+            {
+              "group_id": "__GROUP_ID__",
+              "invoice_display_name": "AWS in Europe",
+              "values": {
+                "amount": "15",
+              }
+            },
+            {
+              "group_id": "__GROUP_ID__",
+              "invoice_display_name": "Google in Europe",
+              "values": {
+                "amount": "20",
+              }
+            }
+          ]
+        }
+      }
+    }
+    + { "plans": {
+        …
+        "charges": [
+        {
+          …
+          "properties": {
+            "amount": "0",
+          },
+          "filters": [
+            {
+              "values": {
+                "provider": "AWS",
+                "region": "Europe"
+              },
+              "invoice_display_name": "AWS in Europe"
+              "properties": { "amount": "15" }
+            },
+            {
+              "values": {
+                "provider": "Google",
+                "region": "Europe"
+              },
+              "invoice_display_name": "Google in Europe"
+              "properties": { "amount": "20" }
+            }
+          ]
+        }
+      }
+    }
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Note that the plan object will display only `filters` and will no longer
+  include `groups_properties`.
+</Warning>
+
+#### c. Impact on fees
+
+- Introduce `lago_charge_filter_id`
+- Deprecate `fees.lago_group_id`
+
+Please migrate all integration using `fees.lago_group_id` or `invoice.fees.lago_group_id`.
+
+<AccordionGroup>
+  <Accordion title='Diff for "fees.lago_group_id"'>
+
+    ```diff
+    - { "fees": {
+        …
+        "lago_group_id": "1a901a90-1a90-1a90-1a90-1a901a901a90",
+        …
+      }
+    }
+    + { "fees": {
+        …
+        "lago_charge_filter_id": "1a901a90-1a90-1a90-1a90-1a901a901a90",
+        …
+      }
+    }
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Warning>This change also affects the `invoice` object.</Warning>
+
+#### d. Impact on customer usage
+
+- Introduce `lago_charge_filter_id`
+- Deprecate `fees.lago_group_id`
+
+Please migrate all integration using `fees.lago_group_id` and/or `invoice.fees.lago_group_id`
+
+<AccordionGroup>
+  <Accordion title='Diff for "fees.lago_group_id"'>
+
+    ```diff
+    - { "customer_usage": {
+        …
+        "charges_usage": [
+          …
+          {
+            "groups": [
+              {
+                "lago_id": "1a901a90-1a90-1a90-1a90-1a901a901a90",
+                "key": "null",
+                "value": "europe",
+                "units": "0.9",
+                "amount_cents": 1000,
+                "events_count": 10
+              }
+            ]
+          }
+        ]
+        …
+      }
+    }
+    + { "customer_usage": {
+        …
+        "charges_usage": [
+          …
+          {
+            "filters": [
+              {
+                "values": {
+                  "provider": "AWS",
+                  "region": "Europe"
+                }
+                "units": "0.9",
+                "amount_cents": 1000,
+                "events_count": 10
+              }
+            ]
+          }
+        ]
+        …
+      }
+    }
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+### 2. `external_subscription_id` required in events payload
+
+To enable real-time functionalities, events payloads must include `external_subscription_id`. Events with only external_customer_id will not be considered in aggregation.
+
+- Introduce `events.external_subscription_id` required
+- Deprecate `events.external_subscription_id` optional
+
+Please migrate all integration using `POST /events` and/or `POST /events/batch`.
+
+<AccordionGroup>
+  <Accordion title='Diff for "fees.lago_group_id"'>
+
+    ```diff
+    - { "event": {
+      "transaction_id": "__UNIQUE_ID__",
+      "external_customer_id": "__YOUR_CUSTOMER_ID__",
+      "code": "__BILLABLE_METRIC_CODE__",
+      "timestamp": $(date +%s),
+      "properties": {
+          "custom_field": 12
+        }
+      }
+    }
+    + { "event": {
+      "transaction_id": "__UNIQUE_ID__",
+      "external_customer_id": "__YOUR_CUSTOMER_ID__",
+      "external_subscription_id": "__YOUR_SUBSCRIPTION_ID__",
+      "code": "__BILLABLE_METRIC_CODE__",
+      "timestamp": $(date +%s),
+      "properties": {
+          "custom_field": 12
+        }
+      }
+    }
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+### 3. Remove deprecated field from API
+
+We will remove deprecated fields to maintain a qualitative API and clarity in field usage.
+
+| Deprecated fields                                    | Field to used instead                                |
+| ---------------------------------------------------- | ---------------------------------------------------- |
+| `applied_coupon.expiration_date`                     | `applied_coupon.expiration_at`                       |
+| `coupon.expiration_date`                             | `coupon.expiration_at`                               |
+| `credit_note.total_amount_currency`                  | `credit_note.currency`                               |
+| `credit_note.vat_amount_cents`                       | `credit_note.taxes_amount_cents`                     |
+| `credit_note.vat_amount_currency`                    | `credit_note.currency`                               |
+| `credit_note.sub_total_vat_excluded_amount_cents`    | `credit_note.sub_total_excluding_taxes_amount_cents` |
+| `credit_note.sub_total_vat_excluded_amount_currency` | `credit_note.currency`                               |
+| `credit_note.balance_amount_currency`                | `credit_note.currency`                               |
+| `credit_note.credit_amount_currency`                 | `credit_note.currency`                               |
+| `credit_note.refund_amount_currency`                 | `credit_note.currency`                               |
+| `credit.before_vat`                                  | `credit.before_taxes`                                |
+| `credit.item.lago_id`                                | `credit.item.lago_item_id`                           |
+| `customer.billing_configuration.vat_rate`            | `customer.taxes[].rate`                              |
+| `customer_usage.from_date`                           | `customer_usage.from_datetime`                       |
+| `customer_usage.to_date`                             | `customer_usage.to_datetime`                         |
+| `customer_usage.amount_currency`                     | `customer_usage.currency`                            |
+| `customer_usage.total_amount_currency`               | `customer_usage.currency`                            |
+| `customer_usage.vat_amount_currency`                 | `customer_usage.currency`                            |
+| `customer_usage.vat_amount_cents`                    | `customer_usage.taxes_amount_cents`                  |
+| `event_error.input_params.transaction_id`            | `event_error.event.transaction_id`                   |
+| `event_error.input_params.external_subscription_id`  | `event_error.event.external_subscription_id`         |
+| `event_error.input_params.external_customer_id`      | `event_error.event.external_customer_id`             |
+| `event_error.input_params.timestamp`                 | `event_error.event.timestamp`                        |
+| `event_error.input_params.code`                      | `event_error.event.code`                             |
+| `event_error.input_params.properties`                | `event_error.event.properties`                       |
+| `fee.vat_amount_cents`                               | `fee.taxes_amount_cents`                             |
+| `fee.vat_amount_currency`                            | `fee.amount_currency`                                |
+| `fee.unit_amount_cents`                              | `fee.precise_unit_amount`                            |
+| `invoice.legacy`                                     | `-`                                                  |
+| `invoice.amount_currency`                            | `invoice.currency`                                   |
+| `invoice.vat_amount_currency`                        | `invoice.currency`                                   |
+| `invoice.credit_amount_currency`                     | `invoice.currency`                                   |
+| `invoice.total_amount_currency`                      | `invoice.currency`                                   |
+| `invoice.amount_cents`                               | `invoice.fees_amount_cents`                          |
+| `invoice.credit_amount_cents`                        | `invoice.credits[].amount_cents`                     |
+| `invoice.vat_amount_cents`                           | `invoice.taxes_amount_cents`                         |
+| `invoice.sub_total_vat_excluded_amount_cents`        | `invoice.sub_total_excluding_taxes_amount_cents`     |
+| `invoice.sub_total_vat_included_amount_cents`        | `invoice.sub_total_including_taxes_amount_cents`     |
+| `organization.billing_configuration.vat_rate`        | `organization.taxes[].rate`                          |
+| `subscription.subscription_date`                     | `subscription.subscription_at`                       |
+| `wallet.expiration_date`                             | `wallet.expiration_at`                               |
+| `wallet.balance`                                     | `wallet.balance_cents`                               |
+
+### 4. Get involved
+
+Your feedback is crucial to us. If you have any questions, encounter issues, or have suggestions, please reach out to us via the Slack community.
+
+We understand that breaking changes can be disruptive, and we apologize for any inconvenience caused. Our team is committed to providing support throughout this transition process to minimize disruptions.
+
+Thank you for your understanding and continued support of Lago.
